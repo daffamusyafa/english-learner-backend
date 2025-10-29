@@ -30,14 +30,11 @@ build_and_push_to_dockerhub:
   script:
     - echo "Logging in to Docker Hub..."
     - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
-    
     - echo "Building image with tag: $VERSION_TAG"
     # Menggunakan tag versi otomatis
     - docker build -t $DOCKERHUB_IMAGE:$VERSION_TAG .
-    
     - echo "Creating 'latest' tag..."
     - docker tag $DOCKERHUB_IMAGE:$VERSION_TAG $DOCKERHUB_IMAGE:latest
-    
     - echo "Pushing image to Docker Hub..."
     # Push tag versi otomatis
     - docker push $DOCKERHUB_IMAGE:$VERSION_TAG
