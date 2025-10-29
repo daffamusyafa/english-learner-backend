@@ -1,52 +1,37 @@
-# Menentukan tahapan (stages) dalam pipeline
 stages:
   - build
 
-# Menentukan variabel global
 variables:
-  # Nama image Anda di Docker Hub
   DOCKERHUB_IMAGE: "daffamusyafa/english-learner-backend"
 
-# Mendefinisikan job untuk build dan push
 build_and_push_to_dockerhub:
   stage: build
-  
-  # Menyediakan 'docker' CLI
   image: docker:20.10
-  # Menjalankan 'docker' engine (daemon)
   services:
     - docker:20.10-dind
-  
-  # -----------------------------------------------------------------
-  # ▼ TAMBAHAN BARU UNTUK MEMPERBAIKI ERROR "Cannot connect" ▼
+    
   variables:
-    # Memberi tahu 'docker' CLI di mana menemukan 'docker' engine
     DOCKER_HOST: tcp://docker:2375
-    # Menonaktifkan enkripsi (TLS) karena kita terhubung
-    # langsung ke service 'dind' di jaringan internal
     DOCKER_TLS_CERTDIR: ""
-  # ▲ -----------------------------------------------------------------
+    # Kita tidak perlu $VERSION_TAG di sini, kita akan pakai $CI_COMMIT_TAG
 
-  # Dikomentari agar runner Anda yang tidak punya tag bisa mengambil job
-  # tags:
-  #   - docker 
-
-  # Skrip/perintah yang akan dijalankan
   script:
     - echo "Logging in to Docker Hub..."
-    # Login akan berhasil karena DOCKER_HOST sudah diatur
     - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
     
-    - echo "Building backend Docker image..."
-    # Build juga akan berhasil sekarang
-    - docker build -t $DOCKERHUB_IMAGE:$CI_COMMIT_SHA .
+    # $CI_COMMIT_TAG akan berisi nama tag yang Anda push (misal: "v1.1")
+    - echo "Building image with tag: $CI_COMMIT_TAG"
+    - docker build -t $DOCKERHUB_IMAGE:$CI_COMMIT_TAG .
     
     - echo "Creating 'latest' tag..."
-    - docker tag $DOCKERHUB_IMAGE:$CI_COMMIT_SHA $DOCKERHUB_IMAGE:latest
+    - docker tag $DOCKERHUB_IMAGE:$CI_COMMIT_TAG $DOCKERHUB_IMAGE:latest
     
     - echo "Pushing image to Docker Hub..."
-    - docker push $DOCKERHUB_IMAGE:$CI_COMMIT_SHA
+    - docker push $DOCKERHUB_IMAGE:$CI_COMMIT_TAG
     - docker push $DOCKERHUB_IMAGE:latest
     
+  # ▼ PENTING: Mengubah aturan 'only'
+  # Job ini TIDAK akan berjalan di branch 'master'
+  # Job ini HANYA akan berjalan jika Anda me-push 'tag'
   only:
-    - master
+    - tags
