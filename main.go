@@ -91,7 +91,7 @@ func setupDatabase() {
 	dbname := getEnv("DB_NAME", "english_learner_db")
 	port := getEnv("DB_PORT", "5432")
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia%2FJakarta",
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta",
 		host, user, password, dbname, port)
 
 	var err error
