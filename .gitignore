@@ -1,0 +1,23 @@
+# Binary executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+app
+
+# Arsip
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# File database lokal
+app.db
+
+# File log
+*.log
+
+# File OS
+.DS_Store
+Thumbs.db
