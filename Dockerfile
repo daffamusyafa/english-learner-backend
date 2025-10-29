@@ -3,7 +3,6 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Ambil build argument untuk JWT_SECRET
 ARG JWT_SECRET
 ENV JWT_SECRET=$JWT_SECRET
 
@@ -19,11 +18,12 @@ FROM alpine:latest
 
 WORKDIR /root/
 
+# ✅ FIX TIMEZONE ERROR
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Jakarta
+
 COPY --from=builder /app/app .
 
-# --- PERUBAHAN DI SINI ---
-# Expose port yang digunakan aplikasi
 EXPOSE 5000
 
-# Command untuk menjalankan aplikasi
 CMD ["./app"]
