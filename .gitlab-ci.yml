@@ -1,7 +1,7 @@
 build_backend:
   stage: build
-  tags:
-    - docker # Pastikan runner Anda memiliki tag ini
+  #tags:
+   # - docker # Pastikan runner Anda memiliki tag ini
   variables:
     # Tentukan nama image Anda di Docker Hub
     # Format: <username-dockerhub>/<nama-image-repo>
