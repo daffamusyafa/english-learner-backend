@@ -19,14 +19,14 @@ build_and_push_to_dockerhub:
     DOCKER_HOST: tcp://docker:2375
     # Menonaktifkan enkripsi (TLS)
     DOCKER_TLS_CERTDIR: ""
-    # Membuat tag versi otomatis, misal: "v1.70"
+    # Membuat tag versi otomatis, misal: "v1.71"
     VERSION_TAG: "v1.$CI_PIPELINE_IID"
 
   # Dikomentari agar runner Anda bisa mengambil job
   # tags:
   #   - docker 
 
-  # --- BAGIAN PENTING YANG MUNGKIN HILANG/SALAH ---
+  # Pastikan 'script:' memiliki indentasi yang benar (2 spasi)
   script:
     - echo "Logging in to Docker Hub..."
     - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
@@ -43,7 +43,6 @@ build_and_push_to_dockerhub:
     - docker push $DOCKERHUB_IMAGE:$VERSION_TAG
     # Push tag 'latest'
     - docker push $DOCKERHUB_IMAGE:latest
-  # --- AKHIR BAGIAN SCRIPT ---
     
   only:
     - master
