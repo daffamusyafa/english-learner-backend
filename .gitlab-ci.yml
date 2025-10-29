@@ -2,52 +2,51 @@
 stages:
   - build
 
-# Menentukan variabel global yang akan digunakan di semua job
+# Menentukan variabel global
 variables:
-  # PASTIKAN INI BENAR: username-dockerhub/nama-repo
+  # Nama image Anda di Docker Hub
   DOCKERHUB_IMAGE: "daffamusyafa/english-learner-backend"
 
 # Mendefinisikan job untuk build dan push
 build_and_push_to_dockerhub:
   stage: build
   
-  # -----------------------------------------------------------------
-  # ▼ PENTING: INI MEMPERBAIKI ERROR "docker: not found"
-  # 'image' menyediakan perintah 'docker'
-  # 'services' menjalankan mesin Docker (Docker-in-Docker)
+  # Menyediakan 'docker' CLI
   image: docker:20.10
+  # Menjalankan 'docker' engine (daemon)
   services:
     - docker:20.10-dind
+  
+  # -----------------------------------------------------------------
+  # ▼ TAMBAHAN BARU UNTUK MEMPERBAIKI ERROR "Cannot connect" ▼
+  variables:
+    # Memberi tahu 'docker' CLI di mana menemukan 'docker' engine
+    DOCKER_HOST: tcp://docker:2375
+    # Menonaktifkan enkripsi (TLS) karena kita terhubung
+    # langsung ke service 'dind' di jaringan internal
+    DOCKER_TLS_CERTDIR: ""
   # ▲ -----------------------------------------------------------------
 
-
-  # PENTING: Bagian 'tags' sengaja dikomentari
-  # Ini agar job-nya bisa diambil oleh instance runner Anda
-  # yang tidak memiliki tag khusus (memperbaiki masalah 'Stuck').
+  # Dikomentari agar runner Anda yang tidak punya tag bisa mengambil job
   # tags:
   #   - docker 
 
   # Skrip/perintah yang akan dijalankan
   script:
     - echo "Logging in to Docker Hub..."
-    # 1. Login ke Docker Hub menggunakan variabel CI/CD
+    # Login akan berhasil karena DOCKER_HOST sudah diatur
     - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
     
     - echo "Building backend Docker image..."
-    # 2. Build image dan beri tag dengan Commit SHA
-    # Titik '.' di akhir berarti Dockerfile ada di folder ini
+    # Build juga akan berhasil sekarang
     - docker build -t $DOCKERHUB_IMAGE:$CI_COMMIT_SHA .
     
     - echo "Creating 'latest' tag..."
-    # 3. Buat tag 'latest' yang menunjuk ke image yang baru di-build
     - docker tag $DOCKERHUB_IMAGE:$CI_COMMIT_SHA $DOCKERHUB_IMAGE:latest
     
     - echo "Pushing image to Docker Hub..."
-    # 4. Push kedua tag (Commit SHA dan 'latest') ke Docker Hub
     - docker push $DOCKERHUB_IMAGE:$CI_COMMIT_SHA
     - docker push $DOCKERHUB_IMAGE:latest
     
-  # Hanya jalankan job ini ketika ada push ke branch 'master'
-  # Hapus bagian 'only' ini jika Anda ingin pipeline berjalan di semua branch
   only:
     - master
