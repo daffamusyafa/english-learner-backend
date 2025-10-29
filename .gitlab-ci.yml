@@ -2,36 +2,48 @@ stages:
   - build
 
 variables:
+  # Nama image Anda di Docker Hub
   DOCKERHUB_IMAGE: "daffamusyafa/english-learner-backend"
 
 build_and_push_to_dockerhub:
   stage: build
+  
+  # Menyediakan 'docker' CLI
   image: docker:20.10
+  # Menjalankan 'docker' engine (daemon)
   services:
     - docker:20.10-dind
     
   variables:
+    # Memberi tahu 'docker' CLI di mana menemukan 'docker' engine
     DOCKER_HOST: tcp://docker:2375
+    # Menonaktifkan enkripsi (TLS)
     DOCKER_TLS_CERTDIR: ""
-    # Kita tidak perlu $VERSION_TAG di sini, kita akan pakai $CI_COMMIT_TAG
+    # Membuat tag versi otomatis, misal: "v1.70"
+    VERSION_TAG: "v1.$CI_PIPELINE_IID"
 
+  # Dikomentari agar runner Anda bisa mengambil job
+  # tags:
+  #   - docker 
+
+  # --- BAGIAN PENTING YANG MUNGKIN HILANG/SALAH ---
   script:
     - echo "Logging in to Docker Hub..."
     - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
     
-    # $CI_COMMIT_TAG akan berisi nama tag yang Anda push (misal: "v1.1")
-    - echo "Building image with tag: $CI_COMMIT_TAG"
-    - docker build -t $DOCKERHUB_IMAGE:$CI_COMMIT_TAG .
+    - echo "Building image with tag: $VERSION_TAG"
+    # Menggunakan tag versi otomatis
+    - docker build -t $DOCKERHUB_IMAGE:$VERSION_TAG .
     
     - echo "Creating 'latest' tag..."
-    - docker tag $DOCKERHUB_IMAGE:$CI_COMMIT_TAG $DOCKERHUB_IMAGE:latest
+    - docker tag $DOCKERHUB_IMAGE:$VERSION_TAG $DOCKERHUB_IMAGE:latest
     
     - echo "Pushing image to Docker Hub..."
-    - docker push $DOCKERHUB_IMAGE:$CI_COMMIT_TAG
+    # Push tag versi otomatis
+    - docker push $DOCKERHUB_IMAGE:$VERSION_TAG
+    # Push tag 'latest'
     - docker push $DOCKERHUB_IMAGE:latest
+  # --- AKHIR BAGIAN SCRIPT ---
     
-  # ▼ PENTING: Mengubah aturan 'only'
-  # Job ini TIDAK akan berjalan di branch 'master'
-  # Job ini HANYA akan berjalan jika Anda me-push 'tag'
   only:
-    - tags
+    - master
