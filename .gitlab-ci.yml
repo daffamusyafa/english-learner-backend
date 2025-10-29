@@ -1,26 +1,24 @@
-stages:
-  - build
-
-variables:
-  # Ganti 'your-group/your-project/backend' dengan path registry Anda
-  IMAGE_TAG_BACKEND: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
-
 build_backend:
   stage: build
-  image: docker:20.10.16
-  services:
-    - docker:20.10.16-dind
+  tags:
+    - docker # Pastikan runner Anda memiliki tag ini
+  variables:
+    # Tentukan nama image Anda di Docker Hub
+    # Format: <username-dockerhub>/<nama-image-repo>
+    DOCKERHUB_IMAGE: "daffa-student/english-learner-backend" 
   script:
+    - echo "Logging in to Docker Hub..."
+    # 1. Login ke DOCKER HUB menggunakan variabel yang baru dibuat
+    # Jangan sertakan $CI_REGISTRY di sini
+    - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+    
     - echo "Building backend Docker image..."
-    # Login ke GitLab Container Registry
-    # BENAR - menggunakan $CI_JOB_TOKEN
-    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    # Build image
-    # Kita set JWT_SECRET sebagai build argument agar bisa digunakan saat build
-    # Pastikan JWT_SECRET ada di GitLab CI/CD Variables
-    - |
-      docker build \
-        --build-arg JWT_SECRET=${JWT_SECRET} \
-        -t $IMAGE_TAG_BACKEND .
-    # Push image ke registry
-    - docker push $IMAGE_TAG_BACKEND
+    # 2. Build dan TAG image dengan format Docker Hub
+    - docker build -t $DOCKERHUB_IMAGE:$CI_COMMIT_SHA .
+    # (Opsional) Buat juga tag 'latest'
+    - docker tag $DOCKERHUB_IMAGE:$CI_COMMIT_SHA $DOCKERHUB_IMAGE:latest
+    
+    - echo "Pushing image to Docker Hub..."
+    # 3. Push image ke DOCKER HUB
+    - docker push $DOCKERHUB_IMAGE:$CI_COMMIT_SHA
+    - docker push $DOCKERHUB_IMAGE:latest
