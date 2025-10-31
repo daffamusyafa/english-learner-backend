@@ -28,8 +28,8 @@ build_and_push_to_dockerhub:
   # ▲ -----------------------------------------------------------------
 
   # Dikomentari agar runner Anda yang tidak punya tag bisa mengambil job
-  # tags:
-  #   - docker 
+    tags:
+      - docker 
 
   # Skrip/perintah yang akan dijalankan
   script:
