@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gin-contrib/cors" // <-- 1. IMPORT LIBRARY CORS
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -110,18 +111,22 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	r := gin.Default()
 
-	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	// --- 2. HAPUS MIDDLEWARE CORS MANUAL ANDA ---
+	// (Blok 'r.Use(func(c *gin.Context) { ... })' LAMA DIHAPUS)
 
+	// --- 3. GUNAKAN MIDDLEWARE CORS YANG BENAR ---
+	config := cors.DefaultConfig()
+	// Ganti '*' dengan 'http://localhost:8081' agar 'AllowCredentials' berfungsi
+	config.AllowOrigins = []string{"http://localhost:8081"}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	// Izinkan header 'Authorization' secara eksplisit
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+	// Izinkan pengiriman credentials (token)
+	config.AllowCredentials = true 
+	
+	r.Use(cors.New(config))
+
+	// --- Sisa router Anda (tidak berubah) ---
 	r.POST("/register", handleRegister)
 	r.POST("/login", handleLogin)
 
@@ -184,7 +189,8 @@ func handleLogin(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat token"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"token": "Bearer " + token})
+	// Perbaiki token agar tidak ada spasi "Bearer " ganda
+	c.JSON(http.StatusOK, gin.H{"token": token}) 
 }
 
 func handleAddSentence(c *gin.Context) {
