@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors" // <-- Ditambahkan untuk GORM
 	"fmt"
 	"log"
 	"math/rand"
@@ -8,14 +9,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/gin-contrib/cors" // <-- 1. IMPORT LIBRARY CORS
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/joho/godotenv" // <-- Ditambahkan untuk .env
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
+// --- (Struct User & Sentence tidak berubah) ---
 type User struct {
 	ID       uint   `gorm:"primaryKey"`
 	Username string `gorm:"unique;not null"`
@@ -29,6 +32,7 @@ type Sentence struct {
 	User   User   `gorm:"foreignKey:UserID"`
 }
 
+// --- (Variabel global & getEnv tidak berubah) ---
 var (
 	db     *gorm.DB
 	jwtKey = []byte(getEnv("JWT_SECRET", "secret_sekali_jangan_ditiru"))
@@ -41,6 +45,7 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+// --- (Fungsi hashPassword & checkPasswordHash tidak berubah) ---
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
@@ -51,6 +56,7 @@ func checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
+// --- (Fungsi generateJWT & authMiddleware tidak berubah) ---
 func generateJWT(userID uint) (string, error) {
 	exp := time.Now().Add(24 * time.Hour)
 	claims := &jwt.RegisteredClaims{
@@ -85,6 +91,7 @@ func authMiddleware() gin.HandlerFunc {
 	}
 }
 
+// --- (Fungsi setupDatabase tidak berubah) ---
 func setupDatabase() {
 	host := getEnv("DB_HOST", "localhost")
 	user := getEnv("DB_USER", "postgres")
@@ -106,24 +113,31 @@ func setupDatabase() {
 	db.AutoMigrate(&User{}, &Sentence{})
 }
 
+// --- FUNGSI MAIN YANG SUDAH DIMODIFIKASI ---
 func main() {
+	// --- 1. Muat file .env di paling atas ---
+	err := godotenv.Load()
+	if err != nil {
+		// Jangan panic jika file .env tidak ada (mungkin di produksi)
+		log.Println("Peringatan: Tidak dapat memuat file .env. Menggunakan environment variable sistem.")
+	}
+	// -----------------------------------------
+
 	setupDatabase()
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano()) // rand.Seed sudah deprecated di Go 1.20+, tapi tidak error
 	r := gin.Default()
 
-	// --- 2. HAPUS MIDDLEWARE CORS MANUAL ANDA ---
-	// (Blok 'r.Use(func(c *gin.Context) { ... })' LAMA DIHAPUS)
-
-	// --- 3. GUNAKAN MIDDLEWARE CORS YANG BENAR ---
+	// --- 2. Konfigurasi CORS dari .env ---
 	config := cors.DefaultConfig()
-	// Ganti '*' dengan 'http://localhost:8081' agar 'AllowCredentials' berfungsi
-	config.AllowOrigins = []string{"http://localhost:8081"}
+
+	// Ambil FE URL dari .env, fallback ke localhost:8081
+	feURL := getEnv("FRONTEND_URL", "http://localhost:8081")
+	config.AllowOrigins = []string{feURL}
+
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	// Izinkan header 'Authorization' secara eksplisit
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
-	// Izinkan pengiriman credentials (token)
-	config.AllowCredentials = true 
-	
+	config.AllowCredentials = true
+
 	r.Use(cors.New(config))
 
 	// --- Sisa router Anda (tidak berubah) ---
@@ -134,15 +148,20 @@ func main() {
 	api.Use(authMiddleware())
 	{
 		api.POST("/sentences", handleAddSentence)
-		api.GET("/sentences/random", handleGetRandomSentence)
+		api.GET("/sentences/random", handleGetRandomSentence) // Menggunakan versi optimasi
 	}
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	r.Run(":5000")
+	// --- 3. Ambil Port dari .env ---
+	appPort := getEnv("PORT", "5000")
+	log.Printf("Server berjalan di port: %s", appPort)
+	r.Run(":" + appPort)
 }
+
+// --- (handleRegister & handleLogin tidak berubah) ---
 
 func handleRegister(c *gin.Context) {
 	var input struct {
@@ -189,9 +208,10 @@ func handleLogin(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat token"})
 		return
 	}
-	// Perbaiki token agar tidak ada spasi "Bearer " ganda
-	c.JSON(http.StatusOK, gin.H{"token": token}) 
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
+
+// --- (handleAddSentence tidak berubah) ---
 
 func handleAddSentence(c *gin.Context) {
 	var input struct {
@@ -213,6 +233,7 @@ func handleAddSentence(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Kalimat berhasil ditambahkan", "data": sentence})
 }
 
+// --- FUNGSI handleGetRandomSentence VERSI OPTIMASI ---
 func handleGetRandomSentence(c *gin.Context) {
 	userIDStr, _ := c.Get("userID")
 	var userID uint
@@ -221,12 +242,23 @@ func handleGetRandomSentence(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses ID user"})
 		return
 	}
-	var sentences []Sentence
-	db.Where("user_id = ?", userID).Find(&sentences)
-	if len(sentences) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Anda belum menambahkan kalimat"})
+
+	var sentence Sentence
+
+	// Minta database (Postgres) untuk mengurutkan secara acak
+	// dan hanya ambil 1 baris. Ini jauh lebih cepat.
+	if err := db.Where("user_id = ?", userID).Order("RANDOM()").Limit(1).First(&sentence).Error; err != nil {
+
+		// Cek apakah error-nya karena "tidak ada data"
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Anda belum menambahkan kalimat"})
+			return
+		}
+
+		// Jika error lain (misal koneksi database putus)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil kalimat dari database"})
 		return
 	}
-	randomSentence := sentences[rand.Intn(len(sentences))]
-	c.JSON(http.StatusOK, gin.H{"id": randomSentence.ID, "text": randomSentence.Text})
+
+	c.JSON(http.StatusOK, gin.H{"id": sentence.ID, "text": sentence.Text})
 }
