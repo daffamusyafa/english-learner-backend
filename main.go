@@ -127,18 +127,22 @@ func main() {
 	rand.Seed(time.Now().UnixNano()) // rand.Seed sudah deprecated di Go 1.20+, tapi tidak error
 	r := gin.Default()
 
-	// --- 2. Konfigurasi CORS dari .env ---
+	// --- 2. Konfigurasi CORS (Mengizinkan Semua Origin) ---
 	config := cors.DefaultConfig()
 
-	// Ambil FE URL dari .env, fallback ke localhost:8081
-	feURL := getEnv("FRONTEND_URL", "http://localhost:8081")
-	config.AllowOrigins = []string{feURL}
+	// HAPUS baris 'feURL' dan 'config.AllowOrigins'
+	// feURL := getEnv("FRONTEND_URL", "http//localhost:8081")
+	// config.AllowOrigins = []string{feURL}
+
+	// GANTI DENGAN INI untuk mengizinkan semua IP dan Port
+	config.AllowAllOrigins = true
 
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	config.AllowCredentials = true
 
 	r.Use(cors.New(config))
+	// ----------------------------------------------------
 
 	// --- Sisa router Anda (tidak berubah) ---
 	r.POST("/register", handleRegister)
@@ -156,6 +160,7 @@ func main() {
 	})
 
 	// --- 3. Ambil Port dari .env ---
+	// (Ini tetap diperlukan agar server tahu harus jalan di port berapa)
 	appPort := getEnv("PORT", "5000")
 	log.Printf("Server berjalan di port: %s", appPort)
 	r.Run(":" + appPort)
